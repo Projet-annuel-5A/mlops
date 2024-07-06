@@ -28,8 +28,8 @@ download_bucket(dataset_bucket_name, dataset_path)
 
 
 # MODEL TRAINING
-model = YOLO('yolov8n-cls.pt')
-results = model.train(data='./dataset', epochs=1, imgsz=48, device=device)
+model = YOLO('yolov8x-cls.pt')
+results = model.train(data='./dataset', epochs=100, imgsz=48, device=device)
 metric = results.top1
 
 # SEND RESULTS ARTIFACTS TO GCS
@@ -40,7 +40,7 @@ deploy_model(
     model_registry=model_registery,
     model_id=model_id,
     trained_model_metric=73,
-    artifact_uri = f"gs://interviewz-models/yolo/1"
+    artifact_uri = f"gs://interviewz-models/yolo/{new_model_version}"
 )
 
 # UPDATE ENDPOINT

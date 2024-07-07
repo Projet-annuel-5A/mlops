@@ -19,14 +19,24 @@ def get_model_versions(model_registery: aiplatform.ModelRegistry):
     new_model_version = last_model_version + 1
     return last_model_version, new_model_version
 
-def upload_model(model_id: str, to_production: bool, metric: int, artifact_uri: str):
+def upload_model(
+        model_id: str,
+        to_production: bool,
+        metric: int,
+        artifact_uri: str,
+        serving_container_image_uri: str
+    ):
+    """
+    Upload a new model in the container registry with the serving image
+    """
+
     model = aiplatform.Model(model_name=model_id)
     print(f"Uploading model {model_id} ...")
     model.upload(
         parent_model=model_id,
         is_default_version=to_production,
         artifact_uri=artifact_uri,
-        serving_container_image_uri="gcr.io/annual-project-427112/model@sha256:d08ab2c77bb7b0dd9da33af5ce5bfd6a868e1c90d751f70a7d1c2d295ccea04a",
+        serving_container_image_uri=serving_container_image_uri,
         serving_container_predict_route="/predict",
         serving_container_health_route="/health",
         labels={"metric": str(metric)}
@@ -38,6 +48,7 @@ def deploy_model(
         model_id: str,
         trained_model_metric: int,
         artifact_uri:str,
+        serving_container_image_uri:str,
         production_alias:str = "default"
     ):
     """
@@ -56,5 +67,55 @@ def deploy_model(
             else :
                 promotion = False
                 print("New trained model is not better than current production model. Skipping model promotion ...")
-            upload_model(model_id=model_id, to_production=promotion, metric=trained_model_metric,artifact_uri=artifact_uri)
+            upload_model(model_id=model_id, to_production=promotion, metric=trained_model_metric,artifact_uri=artifact_uri, serving_container_image_uri=serving_container_image_uri)
+        break
+
+    return promotion
     
+
+
+def redeploy_endpoint(model_id:str = "7605563821884702720", endpoint_display_name: str = "yolo_predict"):
+
+    endpoint_found = False
+    for endpoint in aiplatform.Endpoint.list():
+        if endpoint.display_name == endpoint_display_name:
+            print(f"Found endpoint with display name :{endpoint_display_name}")
+            endpoint_found = True
+            current_endpoint = aiplatform.Endpoint(endpoint_name=endpoint.name)
+
+            current_endpoint.undeploy_all(sync=True)
+
+            current_endpoint.deploy(
+                model=aiplatform.Model(model_id),
+                traffic_percentage=100,
+                machine_type="n1-standard-4",
+                accelerator_type="NVIDIA_TESLA_T4",
+                accelerator_count=1,
+                min_replica_count=1,
+                max_replica_count=1,
+                sync=False
+            )
+    
+    if not endpoint_found:
+        print(f"No endpoint found with display name: {endpoint_display_name}. Creating a new endpoint.")
+        
+        new_endpoint = aiplatform.Endpoint.create(
+            display_name=endpoint_display_name
+        )
+
+        new_endpoint.deploy(
+            model=aiplatform.Model(model_id),
+            traffic_percentage=100,
+            machine_type="n1-standard-4",
+            accelerator_type="NVIDIA_TESLA_T4",
+            accelerator_count=1,
+            min_replica_count=1,
+            max_replica_count=1,
+            sync=True
+        )
+
+        print(f"New endpoint created and model deployed with display name: {endpoint_display_name}")
+
+
+
+

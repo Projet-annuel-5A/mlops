@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   model:
-    image: model:latest 
+    image: gcr.io/annual-project-427112/model:latest
     build:
       context: ./endpoint
     ports:
@@ -17,7 +17,7 @@ services:
             - capabilities: [gpu]
 
   train:
-    image: train:latest 
+    image: gcr.io/annual-project-427112/train:latest 
     build:
       context: ./train
     environment:
